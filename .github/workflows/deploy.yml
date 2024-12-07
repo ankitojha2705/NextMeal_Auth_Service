@@ -1,16 +1,16 @@
-name: CI/CD Pipeline for NextMeal Server
+name: Deploy NextMeal Server
 
 on:
   push:
     branches:
-      - main  # Trigger pipeline on push to the main branch
+      - main  # Trigger pipeline on pushes to the main branch
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout the repository
+      # Step 1: Checkout the code
       - name: Checkout code
         uses: actions/checkout@v3
 
@@ -23,12 +23,9 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
 
-      # Step 3: Build, tag, and push the Docker image
+      # Step 3: Build, tag, and push Docker image
       - name: Build, tag, and push Docker image
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
           ECR_REGISTRY: 529088288756.dkr.ecr.us-west-1.amazonaws.com
           ECR_REPOSITORY: nextmeal-server
           IMAGE_TAG: ${{ github.sha }}
@@ -36,17 +33,13 @@ jobs:
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:${IMAGE_TAG} .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:${IMAGE_TAG}
 
-      # Step 4: Deploy to Amazon ECS
-      - name: Deploy to ECS
+      # Step 4: Deploy to Amazon ECS Service
+      - name: Deploy to ECS Service
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
         with:
-          cluster: nextmeal-cluster
-          service: nextmeal-service
-          task-definition: nextmeal-task-definition.json
-          container-name: nextmeal-server-container
+          cluster: nextmeal-service-cluster
+          service: nextmeal-auth
+          task-definition: nextmeal-task:1
+          container-name: nextmeal-container
           image: 529088288756.dkr.ecr.us-west-1.amazonaws.com/nextmeal-server:${{ github.sha }}
           wait-for-service-stability: true
