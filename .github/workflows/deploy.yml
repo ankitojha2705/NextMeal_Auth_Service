@@ -48,11 +48,12 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
         run: |
-          aws ecs register-task-definition \
+          TASK_DEFINITION_ARN=$(aws ecs register-task-definition \
             --cli-input-json file://new-task-def.json \
-            --region $AWS_REGION
-        # Capture the task definition ARN from the output
-        continue-on-error: false
+            --query "taskDefinition.taskDefinitionArn" \
+            --output text \
+            --region $AWS_REGION)
+          echo "TASK_DEFINITION_ARN=$TASK_DEFINITION_ARN" >> $GITHUB_ENV
 
       # Step 6: Deploy Updated Task Definition to ECS Service
       - name: Deploy to ECS Service
@@ -64,5 +65,5 @@ jobs:
         with:
           cluster: nextmeal-service-cluster
           service: nextmeal-auth
-          task-definition: ${{ steps.register-task-def.outputs.task-definition-arn }}
+          task-definition: ${{ env.TASK_DEFINITION_ARN }}
           wait-for-service-stability: true
