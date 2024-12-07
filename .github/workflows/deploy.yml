@@ -62,7 +62,7 @@ jobs:
         with:
           cluster: nextmeal-service-cluster
           service: nextmeal-auth
-          task-definition: ${{ env.TASK_DEFINITION_ARN }}
+          task-definition: new-task-def.json
           wait-for-service-stability: true
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
