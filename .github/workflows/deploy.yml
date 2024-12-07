@@ -1,9 +1,9 @@
-name: Deploy NextMeal Server
+name: Deploy NextMeal Service
 
 on:
   push:
     branches:
-      - main  # Trigger pipeline on pushes to the main branch
+      - main
 
 jobs:
   deploy:
@@ -33,13 +33,26 @@ jobs:
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:${IMAGE_TAG} .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:${IMAGE_TAG}
 
-      # Step 4: Deploy to Amazon ECS Service
+      # Step 4: Update Task Definition
+      - name: Update ECS Task Definition
+        id: update-task-def
+        run: |
+          jq --arg IMAGE "529088288756.dkr.ecr.us-west-1.amazonaws.com/nextmeal-server:${{ github.sha }}" \
+            '.containerDefinitions[0].image = $IMAGE' nextmeal-task-definition.json > new-task-def.json
+
+      # Step 5: Register Updated Task Definition
+      - name: Register ECS Task Definition
+        id: register-task-def
+        run: |
+          aws ecs register-task-definition \
+            --cli-input-json file://new-task-def.json \
+            --region us-west-1
+
+      # Step 6: Deploy Updated Task Definition to ECS Service
       - name: Deploy to ECS Service
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           cluster: nextmeal-service-cluster
           service: nextmeal-auth
-          task-definition: nextmeal-task:1
-          container-name: nextmeal-container
-          image: 529088288756.dkr.ecr.us-west-1.amazonaws.com/nextmeal-server:${{ github.sha }}
+          task-definition: ${{ steps.register-task-def.outputs.task-definition-arn }}
           wait-for-service-stability: true
